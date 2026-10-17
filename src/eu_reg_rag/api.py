@@ -20,10 +20,10 @@ state: dict = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from eu_reg_rag.pipeline import RAGPipeline
+    from eu_reg_rag.agent import RAGAgent
 
     try:
-        state["pipeline"] = RAGPipeline.from_settings()
+        state["pipeline"] = RAGAgent.from_settings(settings.agent_strategy)
     except SystemExit as e:  # missing index/chunks: keep /health up, report on /ask
         state["error"] = str(e)
     yield

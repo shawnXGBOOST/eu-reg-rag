@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     llm_model: str = "qwen3:8b"
     llm_temperature: float = 0.1
+    # Agent: "fallback" rewrites only after a refusal; "rewrite_first" always rewrites
+    agent_strategy: str = "fallback"
 
     # Embeddings / reranker
     embed_model: str = "BAAI/bge-small-en-v1.5"

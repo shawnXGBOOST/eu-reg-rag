@@ -34,6 +34,9 @@ CONFIGS = {
         "max_per_unit": 1,
     },
 }
+# Needs Ollama running: the LLM rewrites each question into legal-term queries first.
+CONFIGS["Articles-first + LLM query rewrite"] = {"rewrite": True}
+
 DEFAULT_CONFIGS = [  # fast set; add the rerank configs explicitly (~16 s/query on CPU)
     "BM25",
     "Dense",
@@ -91,16 +94,34 @@ def load_questions(path: str) -> list[dict]:
 
 
 def run(
-    retriever, questions: list[dict], mode: str, rerank: bool, kinds=None, max_per_unit=None
+    retriever,
+    questions: list[dict],
+    mode: str = "hybrid",
+    rerank: bool = False,
+    kinds=None,
+    max_per_unit=None,
+    rewrite: bool = False,
+    rewrite_llm=None,
 ) -> list[QResult]:
+    from eu_reg_rag.agent import multi_query_search, rewrite_queries
+
     out = []
     for q in questions:
         t0 = time.perf_counter()
-        res = retriever.search(
-            q["question"], k=10, mode=mode, rerank=rerank, kinds=kinds, max_per_unit=max_per_unit
-        )
+        if rewrite:
+            queries = [q["question"], *rewrite_queries(rewrite_llm, q["question"])]
+            chunks = multi_query_search(retriever, queries, k=10)
+        else:
+            res = retriever.search(
+                q["question"],
+                k=10,
+                mode=mode,
+                rerank=rerank,
+                kinds=kinds,
+                max_per_unit=max_per_unit,
+            )
+            chunks = [r.chunk for r in res]
         ms = (time.perf_counter() - t0) * 1000
-        chunks = [r.chunk for r in res]
         out.append(
             QResult(
                 q["id"],
@@ -176,7 +197,12 @@ def main() -> None:
     )
 
     questions = load_questions(args.questions)
-    needs_rerank = any(CONFIGS[c]["rerank"] for c in args.configs)
+    needs_rerank = any(CONFIGS[c].get("rerank") for c in args.configs)
+    rewrite_llm = None
+    if any(CONFIGS[c].get("rewrite") for c in args.configs):
+        from eu_reg_rag.generate import ollama_llm
+
+        rewrite_llm = ollama_llm(json_mode=True)
     retriever = HybridRetriever(
         load_chunks(),
         sentence_transformer_encoder(),
@@ -188,7 +214,7 @@ def main() -> None:
     all_results = {}
     for name in args.configs:
         print(f"Running {name} on {len(questions)} questions ...")
-        all_results[name] = run(retriever, questions, **CONFIGS[name])
+        all_results[name] = run(retriever, questions, **CONFIGS[name], rewrite_llm=rewrite_llm)
 
     md = to_markdown(all_results)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

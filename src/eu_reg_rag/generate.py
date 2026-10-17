@@ -128,22 +128,21 @@ def postprocess(question: str, raw: str, chunks: list[dict]) -> Answer:
 # ---------- LLM backend ----------
 
 
-def ollama_llm(model: str | None = None, timeout: float = 180.0) -> LLMFn:
+def ollama_llm(model: str | None = None, timeout: float = 180.0, json_mode: bool = False) -> LLMFn:
     def call(system: str, user: str) -> str:
-        r = httpx.post(
-            f"{settings.ollama_url}/api/chat",
-            json={
-                "model": model or settings.llm_model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "stream": False,
-                "think": False,  # Qwen3: skip the hidden reasoning pass; much faster on CPU
-                "options": {"temperature": settings.llm_temperature, "num_ctx": 8192},
-            },
-            timeout=timeout,
-        )
+        payload = {
+            "model": model or settings.llm_model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": False,
+            "think": False,  # Qwen3: skip the hidden reasoning pass; much faster on CPU
+            "options": {"temperature": settings.llm_temperature, "num_ctx": 8192},
+        }
+        if json_mode:
+            payload["format"] = "json"  # Ollama constrains output to valid JSON
+        r = httpx.post(f"{settings.ollama_url}/api/chat", json=payload, timeout=timeout)
         r.raise_for_status()
         return r.json()["message"]["content"]
 

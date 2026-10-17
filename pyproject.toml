@@ -13,6 +13,7 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "pypdf>=4.3",
     "beautifulsoup4>=4.12",
+    "langgraph>=0.2",
 ]
 
 [project.optional-dependencies]
