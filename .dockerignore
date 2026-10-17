@@ -1,0 +1,8 @@
+.venv
+.git
+data/raw
+data/qdrant
+eval
+tests
+__pycache__
+*.pyc

@@ -300,7 +300,7 @@ $("form").addEventListener("submit", async (e) => {
   } catch (err) {
     $("status").textContent = "";
     $("answer").className = "answer refused";
-    $("answer").textContent = `The request failed: ${err.message}. Check that the server and Ollama are running, then ask again.`;
+    $("answer").textContent = `The request failed: ${err.message}. Check that the server and the language model backend are running, then ask again.`;
   } finally {
     $("go").disabled = false;
   }
@@ -347,7 +347,7 @@ function handle(ev) {
     case "error":
       $("status").textContent = "";
       $("answer").className = "answer refused";
-      $("answer").textContent = `${ev.message}. Check that Ollama is running, then ask again.`;
+      $("answer").textContent = `${ev.message}. Check that the language model backend is running (or the demo limit was reached), then ask again.`;
       break;
   }
 }

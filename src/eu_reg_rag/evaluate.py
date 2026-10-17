@@ -206,9 +206,9 @@ def main() -> None:
     needs_rerank = any(CONFIGS[c].get("rerank") for c in args.configs)
     rewrite_llm = None
     if any(CONFIGS[c].get("rewrite") for c in args.configs):
-        from eu_reg_rag.generate import ollama_llm
+        from eu_reg_rag.generate import make_llm
 
-        rewrite_llm = ollama_llm(json_mode=True)
+        rewrite_llm = make_llm(json_mode=True)
     retriever = HybridRetriever(
         load_chunks(),
         sentence_transformer_encoder(),

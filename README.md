@@ -4,7 +4,7 @@ Ask questions about the **EU AI Act** and the **GDPR** and get answers that cite
 
 It runs fully locally: Qwen3 8B through Ollama, embedded Qdrant, no API keys, no Docker.
 
-!\[UI](docs/demo.png)
+!\[UI](docs/demo.gif)
 
 ## What it does
 
@@ -71,7 +71,7 @@ Hit@5 by difficulty for the final config: easy 1.00, paraphrase 0.86, hard 1.00.
 |Correct refusal on off-topic / near-miss (10 questions)|1.00|
 |Median time per question|44 s (Qwen3 8B, CPU)|
 
-Details and the failing questions: [`eval/answer\_results.md`](eval/answer_results.md).
+Details and the failing questions: [`eval/answer\\\_results.md`](eval/answer_results.md).
 
 ## Known limitations
 
@@ -87,25 +87,25 @@ Details and the failing questions: [`eval/answer\_results.md`](eval/answer_resul
 
 ```bash
 python -m venv .venv
-.venv\\Scripts\\activate            # Windows;  source .venv/bin/activate on Linux/macOS
-pip install -e ".\[dev]"
+.venv\\\\Scripts\\\\activate            # Windows;  source .venv/bin/activate on Linux/macOS
+pip install -e ".\\\[dev]"
 ollama pull qwen3:8b
 
-python -m eu\_reg\_rag.index        # builds the vector index from data/processed/chunks.jsonl
-uvicorn eu\_reg\_rag.api:app        # open http://localhost:8000
+python -m eu\\\_reg\\\_rag.index        # builds the vector index from data/processed/chunks.jsonl
+uvicorn eu\\\_reg\\\_rag.api:app        # open http://localhost:8000
 ```
 
-The chunks are committed, so you do not need to download anything. To rebuild them from the source texts, save the two EUR-Lex pages as `data/raw/gdpr.html` and `data/raw/ai\_act.html` and run `python -m eu\_reg\_rag.ingest`.
+The chunks are committed, so you do not need to download anything. To rebuild them from the source texts, save the two EUR-Lex pages as `data/raw/gdpr.html` and `data/raw/ai\\\_act.html` and run `python -m eu\\\_reg\\\_rag.ingest`.
 
 Embedded Qdrant locks its folder: stop the API before running the index, search or eval commands.
 
 ### Command line
 
 ```bash
-python -m eu\_reg\_rag.ask "Can a bank reject my loan purely by an algorithm?"
-python -m eu\_reg\_rag.search "When is a DPIA required?" -k 5
-python -m eu\_reg\_rag.evaluate                       # retrieval eval, writes eval/results.md
-python -m eu\_reg\_rag.evaluate\_answers --limit 10    # answer eval (needs Ollama), \~45 min for the full set
+python -m eu\\\_reg\\\_rag.ask "Can a bank reject my loan purely by an algorithm?"
+python -m eu\\\_reg\\\_rag.search "When is a DPIA required?" -k 5
+python -m eu\\\_reg\\\_rag.evaluate                       # retrieval eval, writes eval/results.md
+python -m eu\\\_reg\\\_rag.evaluate\\\_answers --limit 10    # answer eval (needs Ollama), \\\~45 min for the full set
 ```
 
 ### API
@@ -115,13 +115,13 @@ python -m eu\_reg\_rag.evaluate\_answers --limit 10    # answer eval (needs Olla
 |`GET /`|web UI|
 |`GET /health`|API, Ollama, Qdrant and pipeline status|
 |`POST /ask`|`{"question": "..."}` returns the answer, sources, agent trace and timings|
-|`POST /ask/stream`|the same as NDJSON events: `sources`, `rewrite`, `generating`, `token`, `attempt\_done`, `final`|
+|`POST /ask/stream`|the same as NDJSON events: `sources`, `rewrite`, `generating`, `token`, `attempt\\\_done`, `final`|
 
 ## Tests and CI
 
 ```bash
 pytest          # 42 tests, no model downloads or Ollama needed
-ruff check . \&\& ruff format --check .
+ruff check . \\\&\\\& ruff format --check .
 ```
 
 GitHub Actions runs two jobs: lint and tests, and a retrieval quality gate that builds the index from the committed chunks and fails the build if Hit@5 drops below 0.90.

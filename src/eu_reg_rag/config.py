@@ -6,9 +6,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # LLM (Ollama)
+    # LLM backend: "ollama" (local, default) or "openai" (any OpenAI-compatible chat API, used for
+    # the hosted demo: Hugging Face router, Groq, OpenRouter, ...)
+    llm_backend: str = "ollama"
+    llm_base_url: str = "https://router.huggingface.co/v1"
+    llm_api_key: str = ""  # falls back to HF_TOKEN
+    hf_token: str = ""
+    llm_extra_body: str = ""  # optional JSON merged into each request, e.g. provider options
+    rate_limit_per_hour: int = 0  # per-IP cap on /ask requests; 0 = off
+
+    # Ollama
     ollama_url: str = "http://localhost:11434"
-    llm_model: str = "qwen3:8b"
+    llm_model: str = "qwen3:8b"  # for the "openai" backend use e.g. "Qwen/Qwen3-8B"
     llm_temperature: float = 0.1
     # Agent: "fallback" rewrites only after a refusal; "rewrite_first" always rewrites
     agent_strategy: str = "fallback"

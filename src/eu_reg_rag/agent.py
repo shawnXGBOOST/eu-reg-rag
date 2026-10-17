@@ -23,7 +23,7 @@ from typing import TypedDict
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 
-from eu_reg_rag.generate import Answer, LLMFn, answer_question, cite_label, ollama_llm
+from eu_reg_rag.generate import Answer, LLMFn, answer_question, cite_label, make_llm
 from eu_reg_rag.retrieval import (
     BINDING_KINDS,
     HybridRetriever,
@@ -141,7 +141,7 @@ class RAGAgent:
     @classmethod
     def from_settings(cls, strategy: str = "fallback") -> RAGAgent:
         retriever = HybridRetriever(load_chunks(), sentence_transformer_encoder(), get_client())
-        return cls(retriever, ollama_llm(), ollama_llm(json_mode=True), strategy=strategy)
+        return cls(retriever, make_llm(), make_llm(json_mode=True), strategy=strategy)
 
     # nodes ---------------------------------------------------------------
 

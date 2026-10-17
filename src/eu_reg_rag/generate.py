@@ -166,6 +166,92 @@ def ollama_llm(model: str | None = None, timeout: float = 180.0, json_mode: bool
     return call
 
 
+class _ThinkFilter:
+    """Streams tokens to the UI but hides a leading <think>...</think> block (Qwen3 on hosted
+    APIs may emit one even when asked not to). postprocess() strips it from the final text too."""
+
+    def __init__(self, on_token: TokenFn):
+        self.on_token, self.buf, self.state = on_token, "", "start"
+
+    def feed(self, piece: str) -> None:
+        if self.state == "pass":
+            self.on_token(piece)
+            return
+        self.buf += piece
+        text = self.buf.lstrip()
+        if self.state == "start":
+            if text.startswith("<think>"):
+                self.state = "thinking"
+            elif "<think>".startswith(text):
+                return  # not enough text yet to know
+            else:
+                self.state, out, self.buf = "pass", self.buf, ""
+                self.on_token(out)
+                return
+        if self.state == "thinking" and "</think>" in self.buf:
+            rest = self.buf.split("</think>", 1)[1].lstrip()
+            self.state, self.buf = "pass", ""
+            if rest:
+                self.on_token(rest)
+
+    def flush(self) -> None:
+        if self.state == "start" and self.buf:
+            self.on_token(self.buf)
+
+
+def openai_llm(model: str | None = None, timeout: float = 120.0, json_mode: bool = False) -> LLMFn:
+    """Any OpenAI-compatible /chat/completions endpoint (HF router, Groq, OpenRouter ...)."""
+
+    def call(system: str, user: str, on_token: TokenFn | None = None) -> str:
+        key = settings.llm_api_key or settings.hf_token
+        if not key:
+            raise httpx.HTTPError("LLM_API_KEY / HF_TOKEN is not set")
+        payload = {
+            "model": model or settings.llm_model,
+            "messages": [
+                {"role": "system", "content": system},
+                # "/no_think" is Qwen3's switch for skipping the reasoning pass
+                {"role": "user", "content": f"{user}\n/no_think"},
+            ],
+            "temperature": settings.llm_temperature,
+            "stream": on_token is not None,
+        }
+        if json_mode:
+            payload["messages"][0]["content"] += "\nRespond with valid JSON only."
+        if settings.llm_extra_body:
+            payload.update(json.loads(settings.llm_extra_body))
+        url = f"{settings.llm_base_url.rstrip('/')}/chat/completions"
+        headers = {"Authorization": f"Bearer {key}"}
+        if on_token is None:
+            r = httpx.post(url, json=payload, headers=headers, timeout=timeout)
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"] or ""
+
+        parts: list[str] = []
+        filt = _ThinkFilter(on_token)
+        with httpx.stream("POST", url, json=payload, headers=headers, timeout=timeout) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line.startswith("data:") or line.strip() == "data: [DONE]":
+                    continue
+                choices = json.loads(line[5:]).get("choices") or [{}]
+                piece = choices[0].get("delta", {}).get("content") or ""
+                if piece:
+                    parts.append(piece)
+                    filt.feed(piece)
+        filt.flush()
+        return "".join(parts)
+
+    return call
+
+
+def make_llm(json_mode: bool = False) -> LLMFn:
+    """The LLM chosen by settings.llm_backend ("ollama" or "openai")."""
+    if settings.llm_backend == "openai":
+        return openai_llm(json_mode=json_mode)
+    return ollama_llm(json_mode=json_mode)
+
+
 def answer_question(
     question: str, chunks: list[dict], llm: LLMFn, on_token: TokenFn | None = None
 ) -> Answer:
