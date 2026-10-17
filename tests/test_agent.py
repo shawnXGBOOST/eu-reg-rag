@@ -107,3 +107,23 @@ def test_rewrite_first_and_attempt_limit(retriever):
 def test_invalid_strategy_rejected(retriever):
     with pytest.raises(ValueError):
         RAGAgent(retriever, never := (lambda s, u: ""), strategy="yolo")  # noqa: F841
+
+
+def test_ask_stream_emits_events_in_order(retriever):
+    def streaming_llm(system, user, on_token=None):
+        text = "Compensation is available [S1]."
+        if on_token:
+            for word in text.split(" "):
+                on_token(word + " ")
+        return text
+
+    agent = RAGAgent(retriever, streaming_llm, legal_rewriter, strategy="fallback", k=1)
+    events = list(agent.ask_stream("right to compensation"))
+    types = [e["type"] for e in events]
+    assert types[0] == "sources" and types[-1] == "final"
+    assert types.count("token") == 4  # one per word, streamed live
+    assert events[0]["sources"][0]["label"] == "GDPR Art. 82"
+    final = events[-1]
+    assert final["supported"] and final["sources"][0]["text"]  # cited article text included
+    # invoke() path must still work without streaming
+    assert agent.ask("right to compensation")["supported"]

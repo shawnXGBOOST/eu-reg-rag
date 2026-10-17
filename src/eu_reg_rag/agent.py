@@ -16,12 +16,14 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Iterator
 from dataclasses import asdict
 from typing import TypedDict
 
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 
-from eu_reg_rag.generate import Answer, LLMFn, answer_question, ollama_llm
+from eu_reg_rag.generate import Answer, LLMFn, answer_question, cite_label, ollama_llm
 from eu_reg_rag.retrieval import (
     BINDING_KINDS,
     HybridRetriever,
@@ -124,6 +126,7 @@ class RAGAgent:
         self.retriever, self.llm = retriever, llm
         self.rewrite_llm = rewrite_llm or llm
         self.strategy, self.max_attempts, self.k = strategy, max_attempts, k
+        self._streaming = False
         self.graph = self._build()
 
     @classmethod
@@ -141,6 +144,7 @@ class RAGAgent:
         # wording already failed, so re-fusing it would only dilute the new queries.
         queries = new if tried else [s["question"], *new]
         queries = queries or [s["question"]]  # rewriter returned nothing usable
+        get_stream_writer()({"type": "rewrite", "queries": new})
         return {
             "queries": queries,
             "trace": [*s.get("trace", []), {"step": "rewrite", "queries": new}],
@@ -150,6 +154,9 @@ class RAGAgent:
         queries = s.get("queries") or [s["question"]]
         chunks = multi_query_search(self.retriever, queries, k=self.k)
         step = {"step": "retrieve", "queries": queries, "found": [c["id"] for c in chunks]}
+        get_stream_writer()(
+            {"type": "sources", "sources": [_source(c, i) for i, c in enumerate(chunks, 1)]}
+        )
         return {
             "chunks": chunks,
             "tried": [*s.get("tried", []), *queries],
@@ -157,8 +164,12 @@ class RAGAgent:
         }
 
     def _generate(self, s: AgentState) -> AgentState:
-        ans = answer_question(s["question"], s["chunks"], self.llm)
+        write = get_stream_writer()  # no-op under invoke(); emits events under stream()
         attempts = s.get("attempts", 0) + 1
+        write({"type": "generating", "attempt": attempts})
+        on_token = (lambda t: write({"type": "token", "text": t})) if self._streaming else None
+        ans = answer_question(s["question"], s["chunks"], self.llm, on_token=on_token)
+        write({"type": "attempt_done", "attempt": attempts, "supported": ans.supported})
         step = {"step": "generate", "attempt": attempts, "supported": ans.supported}
         return {"answer": ans, "attempts": attempts, "trace": [*s.get("trace", []), step]}
 
@@ -182,14 +193,56 @@ class RAGAgent:
 
     def ask(self, question: str) -> dict:
         t0 = time.perf_counter()
+        self._streaming = False
         final = self.graph.invoke({"question": question})
+        return self._result(final, t0)
+
+    def ask_stream(self, question: str) -> Iterator[dict]:
+        """Yield events as the agent works: sources, rewrite, token, attempt_done, final."""
+        t0 = time.perf_counter()
+        self._streaming = True
+        final: dict = {}
+        try:
+            for mode, chunk in self.graph.stream(
+                {"question": question}, stream_mode=["custom", "values"]
+            ):
+                if mode == "custom":
+                    yield chunk
+                else:
+                    final = chunk
+        finally:
+            self._streaming = False
+        yield {"type": "final", **self._result(final, t0)}
+
+    def _result(self, final: dict, t0: float) -> dict:
         ans: Answer = final["answer"]
+        by_id = {c["id"]: c for c in final.get("chunks", [])}
         out = asdict(ans)
         out["sources"] = [
-            {"label": c.label, "id": c.chunk_id, "title": c.title} for c in ans.citations
+            {
+                "label": c.label,
+                "id": c.chunk_id,
+                "title": c.title,
+                "text": _body(by_id[c.chunk_id]) if c.chunk_id in by_id else "",
+            }
+            for c in ans.citations
         ]
         out["attempts"] = final["attempts"]
         out["strategy"] = self.strategy
         out["trace"] = final["trace"]
         out["timing_ms"] = {"total": round((time.perf_counter() - t0) * 1000)}
         return out
+
+
+def _body(chunk: dict) -> str:
+    return chunk["text"].split("\n", 1)[-1]
+
+
+def _source(chunk: dict, i: int) -> dict:
+    return {
+        "tag": f"S{i}",
+        "label": cite_label(chunk),
+        "title": chunk["title"],
+        "id": chunk["id"],
+        "text": _body(chunk),
+    }

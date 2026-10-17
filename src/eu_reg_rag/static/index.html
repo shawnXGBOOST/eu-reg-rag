@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask the GDPR and AI Act</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F7F9;
+    --sheet: #FFFFFF;
+    --ink: #1B2340;
+    --muted: #5A6378;
+    --rule: #D5D9E2;
+    --mark: #FFE45C;
+    --mark-ink: #1B2340;
+    --focus: #2F5BD3;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12172A;
+      --sheet: #1A2036;
+      --ink: #E6E9F2;
+      --muted: #A0A8BD;
+      --rule: #2E3652;
+      --mark: #8A7414;
+      --mark-ink: #FFF4C2;
+      --focus: #8EA9FF;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.5 var(--sans);
+  }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 48px 24px 64px;
+    display: grid;
+    grid-template-columns: minmax(0, 68ch) minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .page { grid-template-columns: 1fr; gap: 32px; padding: 28px 16px 48px; }
+  }
+
+  /* ---------- question ---------- */
+  h1 {
+    font: 600 2.25rem/1.15 var(--serif);
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+  }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  form { display: flex; gap: 8px; }
+  textarea {
+    flex: 1;
+    resize: vertical;
+    min-height: 3.2em;
+    padding: 12px 14px;
+    font: 1.05rem/1.4 var(--sans);
+    color: var(--ink);
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  button.ask {
+    padding: 0 20px;
+    font: 600 1rem var(--sans);
+    color: var(--paper);
+    background: var(--ink);
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button.ask:disabled { opacity: .5; cursor: progress; }
+  .examples { margin: 14px 0 0; color: var(--muted); font-size: .92rem; display: flex; gap: 10px; }
+  .examples ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+  .examples button {
+    text-align: left;
+    font: inherit;
+    color: var(--ink);
+    background: none;
+    border: 0;
+    padding: 0;
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  .examples button:hover { text-decoration-color: var(--ink); }
+
+  /* ---------- answer ---------- */
+  .status { margin: 36px 0 0; color: var(--muted); font-size: .95rem; min-height: 1.5em; }
+  .answer {
+    margin: 12px 0 0;
+    font: 1.15rem/1.7 var(--serif);
+    white-space: pre-wrap;
+  }
+  .answer.refused { color: var(--muted); font-style: italic; }
+  .cite {
+    font: 600 .82rem/1 var(--sans);
+    color: var(--mark-ink);
+    background: var(--mark);
+    border: 0;
+    border-radius: 2px;
+    padding: 2px 5px;
+    margin: 0 1px;
+    cursor: pointer;
+    vertical-align: 1px;
+    white-space: nowrap;
+  }
+  .hint { color: var(--muted); font-size: .95rem; margin-top: 12px; }
+
+  details.trace { margin-top: 32px; border-top: 1px solid var(--rule); padding-top: 14px; }
+  details.trace summary { cursor: pointer; color: var(--muted); font-size: .92rem; }
+  details.trace ol { margin: 12px 0 0; padding-left: 1.3em; font-size: .92rem; }
+  details.trace li { margin-bottom: 6px; }
+  details.trace q { font-style: italic; }
+
+  /* ---------- margin: the sources ---------- */
+  aside { position: sticky; top: 24px; }
+  @media (max-width: 900px) { aside { position: static; } }
+  aside h2 { font: 600 1rem var(--sans); margin: 0 0 4px; }
+  aside .sub { color: var(--muted); font-size: .88rem; margin: 0 0 16px; }
+  .src {
+    border-left: 3px solid var(--rule);
+    padding: 2px 0 2px 14px;
+    margin-bottom: 18px;
+  }
+  .src.cited { border-left-color: var(--mark); }
+  .src.unused { opacity: .55; }
+  .src summary { cursor: pointer; list-style: none; }
+  .src summary::-webkit-details-marker { display: none; }
+  .src .label { font-weight: 600; }
+  .src .title { display: block; color: var(--muted); font-size: .9rem; }
+  .src .body {
+    font: .95rem/1.65 var(--serif);
+    white-space: pre-wrap;
+    margin: 10px 0 0;
+    max-height: 22em;
+    overflow: auto;
+  }
+  .src.flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: var(--mark); } to { background: transparent; } }
+
+  footer { grid-column: 1 / -1; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--rule); padding-top: 16px; }
+
+  @media (prefers-reduced-motion: reduce) { .src.flash { animation: none; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <section>
+    <h1>Ask the GDPR and the EU AI Act</h1>
+    <p class="lede">Answers come only from the two regulations, and every sentence points to the article it comes from.</p>
+
+    <form id="form">
+      <textarea id="q" rows="2" aria-label="Your question" placeholder="For example: can my employer use AI to read my emotions?" required minlength="3" maxlength="1000"></textarea>
+      <button class="ask" id="go" type="submit">Ask</button>
+    </form>
+    <div class="examples">
+      <span>Try</span>
+      <ul>
+        <li><button type="button">What are the maximum fines for prohibited AI practices?</button></li>
+        <li><button type="button">Can a bank reject my loan purely by an algorithm?</button></li>
+        <li><button type="button">When must a data breach be reported?</button></li>
+      </ul>
+    </div>
+
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <div class="answer" id="answer"></div>
+    <div id="hint"></div>
+
+    <details class="trace" id="trace" hidden>
+      <summary>How this answer was found</summary>
+      <ol id="steps"></ol>
+    </details>
+  </section>
+
+  <aside aria-label="Sources">
+    <h2>Articles</h2>
+    <p class="sub" id="srcsub">The articles behind the answer appear here. Open one to read it.</p>
+    <div id="sources"></div>
+  </aside>
+
+  <footer>
+    Sources: Regulation (EU) 2016/679 (GDPR) and Regulation (EU) 2024/1689 (AI Act), official English texts from EUR-Lex.
+    This is a research project, not legal advice.
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const NO_ANSWER = "The provided articles do not answer this question.";
+let sources = {};      // tag -> source of the current attempt
+let raw = "";          // streamed model text of the current attempt
+
+const esc = (s) => s.replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function renderAnswer(text) {
+  // Escape model output first, then turn [S#] tags into citation marks. Unknown tags are dropped.
+  // Repeats of the same source get a shorter mark ("Art. 22") to keep the text readable.
+  const seen = new Set();
+  const html = esc(text.replace(/<think>[\s\S]*?(<\/think>|$)/g, ""))
+    .replace(/\[S(\d+)\]/g, (m, n) => {
+      const tag = "S" + n, s = sources[tag];
+      if (!s) return "";
+      const label = seen.has(tag) ? s.label.replace(/^(GDPR|AI Act) /, "") : s.label;
+      seen.add(tag);
+      return `<button type="button" class="cite" data-tag="${tag}" title="${esc(s.label)}">${esc(label)}</button>`;
+    });
+  $("answer").innerHTML = html;
+}
+
+function renderSources(cited = null) {
+  const box = $("sources");
+  box.innerHTML = "";
+  Object.entries(sources).forEach(([tag, s]) => {
+    const used = cited ? cited.has(tag) : true;
+    const d = document.createElement("details");
+    d.className = "src" + (cited ? (used ? " cited" : " unused") : "");
+    d.id = "src-" + tag;
+    d.innerHTML = `<summary><span class="label">${esc(s.label)}</span>
+      <span class="title">${esc(s.title)}${cited && !used ? " (retrieved, not cited)" : ""}</span></summary>
+      <div class="body">${esc(s.text)}</div>`;
+    box.appendChild(d);
+  });
+  $("srcsub").textContent = cited
+    ? "Highlighted articles support the answer. Open one to read the text."
+    : "Articles found so far.";
+}
+
+function addStep(html) {
+  $("trace").hidden = false;
+  const li = document.createElement("li");
+  li.innerHTML = html;
+  $("steps").appendChild(li);
+}
+
+$("answer").addEventListener("click", (e) => {
+  const tag = e.target.closest(".cite")?.dataset.tag;
+  const el = tag && $("src-" + tag);
+  if (!el) return;
+  el.open = true;
+  el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+});
+
+document.querySelectorAll(".examples button").forEach((b) =>
+  b.addEventListener("click", () => { $("q").value = b.textContent; $("form").requestSubmit(); }));
+
+$("q").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit(); }
+});
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = $("q").value.trim();
+  if (question.length < 3) return;
+
+  sources = {}; raw = "";
+  $("answer").textContent = ""; $("answer").className = "answer";
+  $("hint").innerHTML = ""; $("steps").innerHTML = ""; $("trace").hidden = true; $("trace").open = false;
+  $("sources").innerHTML = "";
+  $("go").disabled = true;
+  $("status").textContent = "Searching the regulations…";
+
+  try {
+    const res = await fetch("/ask/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl); buf = buf.slice(nl + 1);
+        if (line.trim()) handle(JSON.parse(line));
+      }
+    }
+  } catch (err) {
+    $("status").textContent = "";
+    $("answer").className = "answer refused";
+    $("answer").textContent = `The request failed: ${err.message}. Check that the server and Ollama are running, then ask again.`;
+  } finally {
+    $("go").disabled = false;
+  }
+});
+
+function handle(ev) {
+  switch (ev.type) {
+    case "sources":
+      sources = Object.fromEntries(ev.sources.map((s) => [s.tag, s]));
+      renderSources();
+      addStep(`Searched and found ${ev.sources.map((s) => esc(s.label)).join(", ")}.`);
+      break;
+    case "generating":
+      raw = "";
+      $("answer").textContent = "";
+      $("status").textContent = ev.attempt > 1 ? "Writing a new answer from the new articles…" : "Writing the answer…";
+      break;
+    case "token":
+      raw += ev.text;
+      renderAnswer(raw);
+      break;
+    case "attempt_done":
+      addStep(ev.supported ? "Wrote an answer backed by the articles."
+                           : "The articles found did not answer the question.");
+      break;
+    case "rewrite":
+      $("status").textContent = "Searching again with the regulations' own legal terms…";
+      addStep(`Rephrased the question in legal terms: ${ev.queries.map((q) => `<q>${esc(q)}</q>`).join(", ")}.`);
+      break;
+    case "final": {
+      const t = (ev.timing_ms.total / 1000).toFixed(1);
+      $("status").textContent = `Answered in ${t} s.`;
+      if (!ev.supported) {
+        $("answer").className = "answer refused";
+        $("answer").textContent = NO_ANSWER;
+        $("hint").innerHTML = `<p class="hint">Try naming the legal concept (for example “deployer” or “right to erasure”) or a specific article.</p>`;
+        renderSources(new Set());
+      } else {
+        renderAnswer(ev.raw);
+        renderSources(new Set(ev.citations.map((c) => c.tag)));
+      }
+      break;
+    }
+    case "error":
+      $("status").textContent = "";
+      $("answer").className = "answer refused";
+      $("answer").textContent = `${ev.message}. Check that Ollama is running, then ask again.`;
+      break;
+  }
+}
+</script>
+</body>
+</html>

@@ -9,6 +9,7 @@ Citing short tags instead of free-text article numbers is far more reliable for 
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -17,8 +18,9 @@ import httpx
 
 from eu_reg_rag.config import settings
 
-# (system prompt, user prompt) -> completion text
-LLMFn = Callable[[str, str], str]
+# llm(system, user) -> completion text. Backends may also accept on_token=callback to stream.
+LLMFn = Callable[..., str]
+TokenFn = Callable[[str], None]
 
 NO_ANSWER = "The provided articles do not answer this question."
 
@@ -129,28 +131,46 @@ def postprocess(question: str, raw: str, chunks: list[dict]) -> Answer:
 
 
 def ollama_llm(model: str | None = None, timeout: float = 180.0, json_mode: bool = False) -> LLMFn:
-    def call(system: str, user: str) -> str:
+    def call(system: str, user: str, on_token: TokenFn | None = None) -> str:
         payload = {
             "model": model or settings.llm_model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "stream": False,
+            "stream": on_token is not None,
             "think": False,  # Qwen3: skip the hidden reasoning pass; much faster on CPU
             "options": {"temperature": settings.llm_temperature, "num_ctx": 8192},
         }
         if json_mode:
             payload["format"] = "json"  # Ollama constrains output to valid JSON
-        r = httpx.post(f"{settings.ollama_url}/api/chat", json=payload, timeout=timeout)
-        r.raise_for_status()
-        return r.json()["message"]["content"]
+        url = f"{settings.ollama_url}/api/chat"
+        if on_token is None:
+            r = httpx.post(url, json=payload, timeout=timeout)
+            r.raise_for_status()
+            return r.json()["message"]["content"]
+
+        # Streaming: Ollama sends one JSON object per line, each with a piece of the reply.
+        parts: list[str] = []
+        with httpx.stream("POST", url, json=payload, timeout=timeout) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                piece = json.loads(line).get("message", {}).get("content", "")
+                if piece:
+                    parts.append(piece)
+                    on_token(piece)
+        return "".join(parts)
 
     return call
 
 
-def answer_question(question: str, chunks: list[dict], llm: LLMFn) -> Answer:
+def answer_question(
+    question: str, chunks: list[dict], llm: LLMFn, on_token: TokenFn | None = None
+) -> Answer:
     if not chunks:
         return Answer(question, NO_ANSWER, "", supported=False)
-    raw = llm(SYSTEM_PROMPT, build_prompt(question, chunks))
+    prompt = build_prompt(question, chunks)
+    raw = llm(SYSTEM_PROMPT, prompt, on_token=on_token) if on_token else llm(SYSTEM_PROMPT, prompt)
     return postprocess(question, raw, chunks)

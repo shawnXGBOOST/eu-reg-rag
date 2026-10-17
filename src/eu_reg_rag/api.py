@@ -6,10 +6,13 @@ Note: embedded Qdrant locks its folder, so stop the API before running index/sea
 
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from eu_reg_rag import __version__
@@ -35,6 +38,14 @@ app = FastAPI(title="EU Reg RAG", version=__version__, lifespan=lifespan)
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=1000)
+
+
+UI_FILE = Path(__file__).parent / "static" / "index.html"
+
+
+@app.get("/", include_in_schema=False)
+def ui() -> FileResponse:
+    return FileResponse(UI_FILE)
 
 
 @app.get("/health")
@@ -66,3 +77,19 @@ def ask(req: AskRequest) -> dict:
         return state["pipeline"].ask(req.question)
     except httpx.HTTPError as e:
         raise HTTPException(502, f"LLM backend error: {e}") from e
+
+
+@app.post("/ask/stream")
+def ask_stream(req: AskRequest) -> StreamingResponse:
+    """NDJSON stream: one JSON event per line (sources, rewrite, token, attempt_done, final)."""
+    if "pipeline" not in state:
+        raise HTTPException(503, state.get("error", "pipeline not loaded"))
+
+    def events():
+        try:
+            for event in state["pipeline"].ask_stream(req.question):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        except httpx.HTTPError as e:
+            yield json.dumps({"type": "error", "message": f"LLM backend error: {e}"}) + "\n"
+
+    return StreamingResponse(events(), media_type="application/x-ndjson")

@@ -25,3 +25,22 @@ def test_ask_endpoint_uses_pipeline_and_validates_input():
     finally:
         api.state.clear()
     assert TestClient(app).post("/ask", json={"question": "anything"}).status_code == 503
+
+
+def test_ask_stream_endpoint_returns_ndjson():
+    import json
+
+    from eu_reg_rag import api
+
+    class FakeAgent:
+        def ask_stream(self, q):
+            yield {"type": "token", "text": "Hi"}
+            yield {"type": "final", "answer": "Hi", "supported": True}
+
+    api.state["pipeline"] = FakeAgent()
+    try:
+        r = TestClient(app).post("/ask/stream", json={"question": "hello there"})
+        lines = [json.loads(x) for x in r.text.strip().splitlines()]
+        assert [e["type"] for e in lines] == ["token", "final"]
+    finally:
+        api.state.clear()
