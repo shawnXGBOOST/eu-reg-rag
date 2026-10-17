@@ -4,7 +4,7 @@ Ask questions about the **EU AI Act** and the **GDPR** and get answers that cite
 
 It runs fully locally: Qwen3 8B through Ollama, embedded Qdrant, no API keys, no Docker.
 
-!\[UI](docs/demo.gif)
+![UI](docs/demo.gif)
 
 ## What it does
 
