@@ -185,6 +185,12 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--questions", default="eval/questions.jsonl")
     p.add_argument("--out", default="eval/results.md")
+    p.add_argument(
+        "--min-hit5",
+        type=float,
+        default=None,
+        help="quality gate: exit with an error if the LAST config's Hit@5 is below this",
+    )
     p.add_argument("--configs", nargs="*", default=DEFAULT_CONFIGS, help=f"any of: {list(CONFIGS)}")
     args = p.parse_args()
 
@@ -220,6 +226,16 @@ def main() -> None:
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(md, encoding="utf-8")
     print("\n" + md + f"\nSaved to {args.out}")
+
+    if args.min_hit5 is not None:
+        gate = args.configs[-1]
+        hit5 = summarize(all_results[gate])["hit@5"]
+        verdict = "PASS" if hit5 >= args.min_hit5 else "FAIL"
+        print(
+            f"Quality gate [{gate}]: Hit@5 {hit5:.2f} vs minimum {args.min_hit5:.2f} -> {verdict}"
+        )
+        if verdict == "FAIL":
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":
