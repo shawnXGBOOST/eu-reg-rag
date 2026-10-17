@@ -14,13 +14,26 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchAny,
+    PointStruct,
+    VectorParams,
+)
 from rank_bm25 import BM25Okapi
 
 from eu_reg_rag.config import settings
 from eu_reg_rag.rerank import ScoreFn
 
-RRF_K = 60  # standard constant from the original RRF paper (Cormack et al., 2009)
+RRF_K = 60
+# Binding provisions. Recitals explain intent but are not law, so "articles-first" search
+# keeps them out of the main results (they can still be fetched separately as context).
+BINDING_KINDS = (
+    "article",
+    "annex",
+)  # standard constant from the original RRF paper (Cormack et al., 2009)
 
 STOPWORDS = set(
     "a an and are as at be by for from has have in is it its of on or shall that the "
@@ -127,15 +140,23 @@ class HybridRetriever:
         self.reranker = reranker
         self.bm25 = BM25Okapi([tokenize(search_text(c)) for c in chunks])
 
-    def dense_ranking(self, query: str, k: int) -> list[int]:
+    def dense_ranking(self, query: str, k: int, kinds: Sequence[str] | None = None) -> list[int]:
         vec = self.encode([query], True)[0]
-        hits = self.client.query_points(settings.collection, query=vec, limit=k).points
+        flt = None
+        if kinds:
+            flt = Filter(must=[FieldCondition(key="kind", match=MatchAny(any=list(kinds)))])
+        hits = self.client.query_points(
+            settings.collection, query=vec, limit=k, query_filter=flt
+        ).points
         return [int(h.id) for h in hits]
 
-    def bm25_ranking(self, query: str, k: int) -> list[int]:
+    def bm25_ranking(self, query: str, k: int, kinds: Sequence[str] | None = None) -> list[int]:
         scores = self.bm25.get_scores(tokenize(query))
         ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-        return [i for i in ranked[:k] if scores[i] > 0]
+        ranked = [i for i in ranked if scores[i] > 0]
+        if kinds:
+            ranked = [i for i in ranked if self.chunks[i]["kind"] in kinds]
+        return ranked[:k]
 
     def search(
         self,
@@ -143,14 +164,21 @@ class HybridRetriever:
         k: int | None = None,
         mode: str = "hybrid",
         rerank: bool = True,
+        kinds: Sequence[str] | None = None,
+        max_per_unit: int | None = None,
     ) -> list[Result]:
+        """kinds: restrict results to these chunk kinds, e.g. BINDING_KINDS for articles-first.
+        max_per_unit: keep at most N chunks per article/recital/annex, so one long article
+        split into many chunks can't crowd every other article out of the top k."""
         k = k or settings.top_k_final
         pool = settings.top_k_retrieve
-        dense = self.dense_ranking(query, pool) if mode in ("dense", "hybrid") else []
-        bm25 = self.bm25_ranking(query, pool) if mode in ("bm25", "hybrid") else []
+        dense = self.dense_ranking(query, pool, kinds) if mode in ("dense", "hybrid") else []
+        bm25 = self.bm25_ranking(query, pool, kinds) if mode in ("bm25", "hybrid") else []
 
         fused = rrf_fuse([r for r in (dense, bm25) if r])
         candidates = sorted(fused, key=fused.get, reverse=True)
+        if max_per_unit and not (rerank and self.reranker):
+            candidates = self._cap_per_unit(candidates, max_per_unit)
         d_rank = {doc: r for r, doc in enumerate(dense, start=1)}
         b_rank = {doc: r for r, doc in enumerate(bm25, start=1)}
 
@@ -158,8 +186,22 @@ class HybridRetriever:
             candidates = candidates[: settings.rerank_pool]
             scores = self.reranker(query, [search_text(self.chunks[i]) for i in candidates])
             ranked = sorted(zip(candidates, scores, strict=True), key=lambda x: x[1], reverse=True)
+            if max_per_unit:
+                keep = set(self._cap_per_unit([i for i, _ in ranked], max_per_unit))
+                ranked = [(i, sc) for i, sc in ranked if i in keep]
             top = ranked[:k]
         else:
             top = [(i, fused[i]) for i in candidates[:k]]
 
         return [Result(self.chunks[i], s, d_rank.get(i), b_rank.get(i)) for i, s in top]
+
+    def _cap_per_unit(self, ranked: list[int], n: int) -> list[int]:
+        counts: dict[tuple, int] = {}
+        out = []
+        for i in ranked:
+            c = self.chunks[i]
+            unit = (c["regulation"], c["kind"], c["number"])
+            if counts.get(unit, 0) < n:
+                counts[unit] = counts.get(unit, 0) + 1
+                out.append(i)
+        return out

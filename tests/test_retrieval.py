@@ -71,3 +71,50 @@ def test_reranker_reorders_candidates():
     assert r.search(query, k=1)[0].chunk["id"] == "aiact-art-6"
     # rerank=False falls back to the fused order, still returning valid results
     assert len(r.search(query, k=2, rerank=False)) == 2
+
+
+def test_articles_first_excludes_recitals():
+    chunks = CHUNKS + [
+        {"id": "gdpr-rec-91", "kind": "recital", "text": "Recital impact assessment high risk"}
+    ]
+    chunks = [{**c, "kind": c.get("kind", "article")} for c in chunks]
+    client = QdrantClient(":memory:")
+    build_index(chunks, fake_encode, client)
+    r = HybridRetriever(chunks, fake_encode, client)
+    q = "impact assessment high risk"
+    assert "gdpr-rec-91" in [x.chunk["id"] for x in r.search(q, k=5, rerank=False)]
+    filtered = r.search(q, k=5, rerank=False, kinds=("article", "annex"))
+    assert filtered and all(x.chunk["kind"] == "article" for x in filtered)
+
+
+def test_max_per_unit_caps_chunks_of_same_article():
+    chunks = [
+        {
+            "id": "a-1",
+            "regulation": "GDPR",
+            "kind": "article",
+            "number": "6",
+            "text": "lawful basis consent",
+        },
+        {
+            "id": "a-2",
+            "regulation": "GDPR",
+            "kind": "article",
+            "number": "6",
+            "text": "lawful basis contract",
+        },
+        {
+            "id": "b",
+            "regulation": "GDPR",
+            "kind": "article",
+            "number": "7",
+            "text": "consent conditions lawful",
+        },
+    ]
+    client = QdrantClient(":memory:")
+    build_index(chunks, fake_encode, client)
+    r = HybridRetriever(chunks, fake_encode, client)
+    ids = [
+        x.chunk["id"] for x in r.search("lawful basis consent", k=3, rerank=False, max_per_unit=1)
+    ]
+    assert len(ids) == 2 and "b" in ids  # only one of a-1/a-2 survives

@@ -1,0 +1,47 @@
+{"id": "q01", "difficulty": "easy", "question": "What is the definition of personal data under the GDPR?", "gold": ["gdpr-art-4"]}
+{"id": "q02", "difficulty": "easy", "question": "What are the lawful bases for processing personal data?", "gold": ["gdpr-art-6"]}
+{"id": "q03", "difficulty": "easy", "question": "What are the conditions for valid consent?", "gold": ["gdpr-art-7"]}
+{"id": "q04", "difficulty": "paraphrase", "question": "From what age can a teenager sign up to an online service without their parents agreeing to the data use?", "gold": ["gdpr-art-8"]}
+{"id": "q05", "difficulty": "paraphrase", "question": "Is a company allowed to process my medical records or fingerprints?", "gold": ["gdpr-art-9"]}
+{"id": "q06", "difficulty": "easy", "question": "What is the right to erasure (right to be forgotten)?", "gold": ["gdpr-art-17"]}
+{"id": "q07", "difficulty": "paraphrase", "question": "Can I take my data from one company and move it to a competitor in a machine-readable file?", "gold": ["gdpr-art-20"]}
+{"id": "q08", "difficulty": "paraphrase", "question": "Can a bank reject my loan application purely by an algorithm without any human looking at it?", "gold": ["gdpr-art-22"]}
+{"id": "q09", "difficulty": "paraphrase", "question": "How do I stop a company from using my data for marketing emails?", "gold": ["gdpr-art-21"]}
+{"id": "q10", "difficulty": "paraphrase", "question": "How many hours does a company have to tell the regulator after it gets hacked and customer data leaks?", "gold": ["gdpr-art-33"]}
+{"id": "q11", "difficulty": "easy", "question": "When must a personal data breach be communicated to the data subject?", "gold": ["gdpr-art-34"]}
+{"id": "q12", "difficulty": "easy", "question": "When is a data protection impact assessment required?", "gold": ["gdpr-art-35"]}
+{"id": "q13", "difficulty": "easy", "question": "When must an organisation designate a data protection officer?", "gold": ["gdpr-art-37"]}
+{"id": "q14", "difficulty": "paraphrase", "question": "Can we send customer data to a country outside the EU that the Commission has approved as safe?", "gold": ["gdpr-art-45"]}
+{"id": "q15", "difficulty": "paraphrase", "question": "How much can a company be fined for breaking the GDPR?", "gold": ["gdpr-art-83"]}
+{"id": "q16", "difficulty": "easy", "question": "What must be included in the records of processing activities?", "gold": ["gdpr-art-30"]}
+{"id": "q17", "difficulty": "easy", "question": "What is data protection by design and by default?", "gold": ["gdpr-art-25"]}
+{"id": "q18", "difficulty": "paraphrase", "question": "What does a privacy notice have to tell people when we collect their data directly from them?", "gold": ["gdpr-art-13"]}
+{"id": "q19", "difficulty": "paraphrase", "question": "How can I find out what data a company holds about me and get a copy?", "gold": ["gdpr-art-15"]}
+{"id": "q20", "difficulty": "easy", "question": "What are the principles of purpose limitation and data minimisation?", "gold": ["gdpr-art-5"]}
+{"id": "q21", "difficulty": "paraphrase", "question": "What must the contract with an outsourcing vendor that handles our customer data contain?", "gold": ["gdpr-art-28"]}
+{"id": "q22", "difficulty": "paraphrase", "question": "Can I sue a company for money if they misused my personal data?", "gold": ["gdpr-art-82"]}
+{"id": "q23", "difficulty": "easy", "question": "What appropriate safeguards such as standard data protection clauses allow transfers to third countries?", "gold": ["gdpr-art-46"]}
+{"id": "q24", "difficulty": "easy", "question": "How does the AI Act define an AI system?", "gold": ["aiact-art-3"]}
+{"id": "q25", "difficulty": "paraphrase", "question": "Is it allowed to rank citizens by their social behaviour and punish them for it?", "gold": ["aiact-art-5"]}
+{"id": "q26", "difficulty": "paraphrase", "question": "Can police use live facial recognition cameras in public streets?", "gold": ["aiact-art-5"]}
+{"id": "q27", "difficulty": "hard", "question": "Is emotion recognition in the workplace allowed?", "gold": ["aiact-art-5"]}
+{"id": "q28", "difficulty": "hard", "question": "What are the maximum fines for prohibited AI practices?", "gold": ["aiact-art-99"]}
+{"id": "q29", "difficulty": "easy", "question": "What are the classification rules for high-risk AI systems?", "gold": ["aiact-art-6"]}
+{"id": "q30", "difficulty": "paraphrase", "question": "Is an AI tool that screens job applicants and filters CVs considered high-risk?", "gold": ["aiact-ann-III", "aiact-art-6"]}
+{"id": "q31", "difficulty": "easy", "question": "What risk management system is required for high-risk AI systems?", "gold": ["aiact-art-9"]}
+{"id": "q32", "difficulty": "paraphrase", "question": "What quality requirements apply to the datasets used to train a high-risk AI model?", "gold": ["aiact-art-10"]}
+{"id": "q33", "difficulty": "easy", "question": "What human oversight measures must high-risk AI systems have?", "gold": ["aiact-art-14"]}
+{"id": "q34", "difficulty": "paraphrase", "question": "What does a company that uses a high-risk AI system (but did not build it) have to do?", "gold": ["aiact-art-26"]}
+{"id": "q35", "difficulty": "easy", "question": "When is a fundamental rights impact assessment required?", "gold": ["aiact-art-27"]}
+{"id": "q36", "difficulty": "paraphrase", "question": "Does a chatbot have to tell users they are talking to a machine, and do deepfakes need a label?", "gold": ["aiact-art-50"]}
+{"id": "q37", "difficulty": "easy", "question": "What are the obligations for providers of general-purpose AI models?", "gold": ["aiact-art-53"]}
+{"id": "q38", "difficulty": "paraphrase", "question": "What extra duties apply to the biggest foundation models that could cause systemic risk?", "gold": ["aiact-art-55", "aiact-art-51"]}
+{"id": "q39", "difficulty": "paraphrase", "question": "Do companies have to train their staff to understand the AI tools they use?", "gold": ["aiact-art-4"]}
+{"id": "q40", "difficulty": "easy", "question": "What are AI regulatory sandboxes?", "gold": ["aiact-art-57"]}
+{"id": "q41", "difficulty": "paraphrase", "question": "From which date do the different parts of the AI Act start to apply?", "gold": ["aiact-art-113"]}
+{"id": "q42", "difficulty": "paraphrase", "question": "What must a provider do if its high-risk AI system causes a death or serious harm?", "gold": ["aiact-art-73"]}
+{"id": "q43", "difficulty": "easy", "question": "What post-market monitoring must providers of high-risk AI systems carry out?", "gold": ["aiact-art-72"]}
+{"id": "q44", "difficulty": "hard", "question": "How much can the Commission fine a company like OpenAI that provides a general-purpose model?", "gold": ["aiact-art-101"]}
+{"id": "q45", "difficulty": "hard", "question": "Can personal data collected for other purposes be reused to develop AI in a regulatory sandbox?", "gold": ["aiact-art-59"]}
+{"id": "q46", "difficulty": "hard", "question": "May sensitive data like ethnicity be processed to detect and correct bias in a high-risk AI system?", "gold": ["aiact-art-10"]}
+{"id": "q47", "difficulty": "hard", "question": "Does a company deploying a high-risk AI system still need to do a GDPR data protection impact assessment?", "gold": ["aiact-art-26", "gdpr-art-35"]}
