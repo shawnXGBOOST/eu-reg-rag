@@ -127,3 +127,38 @@ def test_ask_stream_emits_events_in_order(retriever):
     assert final["supported"] and final["sources"][0]["text"]  # cited article text included
     # invoke() path must still work without streaming
     assert agent.ask("right to compensation")["supported"]
+
+
+def test_per_unit_returns_k_articles_but_up_to_two_chunks_each():
+    chunks = [
+        {
+            **_chunk(
+                "gdpr-art-4-1", "GDPR", "4", "Definitions", "personal data means any information"
+            ),
+            "paragraphs": "(1)-(2)",
+        },
+        {
+            **_chunk(
+                "gdpr-art-4-2",
+                "GDPR",
+                "4",
+                "Definitions",
+                "restriction of processing means marking",
+            ),
+            "paragraphs": "(3)-(5)",
+        },
+        _chunk(
+            "gdpr-art-5",
+            "GDPR",
+            "5",
+            "Principles",
+            "principles processing personal data lawfulness",
+        ),
+    ]
+    client = QdrantClient(":memory:")
+    build_index(chunks, fake_encode, client)
+    r = HybridRetriever(chunks, fake_encode, client)
+    one = multi_query_search(r, ["personal data definition means"], k=2)
+    two = multi_query_search(r, ["personal data definition means"], k=2, per_unit=2)
+    assert len({c["id"].rsplit("-", 1)[0] for c in one}) == len(one)  # 1 chunk per article
+    assert {"gdpr-art-4-1", "gdpr-art-4-2"} <= {c["id"] for c in two}

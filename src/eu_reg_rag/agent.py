@@ -74,27 +74,36 @@ def rewrite_queries(llm: LLMFn, question: str, avoid: list[str] | None = None) -
 
 
 def multi_query_search(
-    retriever: HybridRetriever, queries: list[str], k: int = 5, per_query_k: int = 10
+    retriever: HybridRetriever,
+    queries: list[str],
+    k: int = 5,
+    per_query_k: int = 10,
+    per_unit: int = 1,
 ) -> list[dict]:
-    """Search each query (eval-chosen defaults), fuse rankings with RRF, keep 1 chunk/article."""
+    """Search each query (eval-chosen defaults), fuse rankings with RRF, return k articles.
+
+    per_unit=1 keeps one chunk per article (best for retrieval metrics). The agent uses 2 for
+    generation: long articles (Art. 4 Definitions) split into chunks, and the best-ranked chunk
+    is not always the one holding the answer.
+    """
     by_id: dict[str, dict] = {}
     rankings: list[list[str]] = []
     for q in queries:
         results = retriever.search(
-            q, k=per_query_k, rerank=False, kinds=BINDING_KINDS, max_per_unit=1
+            q, k=per_query_k * per_unit, rerank=False, kinds=BINDING_KINDS, max_per_unit=per_unit
         )
         rankings.append([r.chunk["id"] for r in results])
         for r in results:
             by_id.setdefault(r.chunk["id"], r.chunk)
     fused = rrf_fuse(rankings)
-    out, seen_units = [], set()
+    out, counts = [], {}
     for cid in sorted(fused, key=fused.get, reverse=True):
         unit = tuple(by_id[cid][key] for key in UNIT_KEYS)
-        if unit not in seen_units:
-            seen_units.add(unit)
+        if unit not in counts and len(counts) == k:
+            continue  # k distinct articles reached; only fill remaining chunks of those
+        if counts.get(unit, 0) < per_unit:
+            counts[unit] = counts.get(unit, 0) + 1
             out.append(by_id[cid])
-        if len(out) == k:
-            break
     return out
 
 

@@ -184,6 +184,7 @@ def _make_chunk(u: Unit, chunk_id: str, paragraphs: str, body: str) -> Chunk:
 
 
 RE_POINT = re.compile(r"^\((\w{1,5})\)\s")
+RE_DEFINED_TERM = re.compile(r"^\(\d+\)\s+[\u2018']([^\u2019']{2,80})[\u2019']", re.M)
 RE_SENTENCE_END = re.compile(r"(?<=[.;:])\s+(?=[A-Z(])")
 LEAD_MAX_WORDS = 80  # lead-in lines longer than this are not repeated in each sub-chunk
 
@@ -269,6 +270,17 @@ def _point_range(points: list[Point]) -> str:
     return f"{fmt(first)}-{fmt(last)}"
 
 
+def _pack_by_term(items: list[str], kinds: list[Point | None]) -> list[list[str]]:
+    """Definitions articles: one chunk per defined term (numbered point plus its sub-points), so
+    "'personal data' means ..." is not buried in a chunk with unrelated definitions."""
+    groups: list[list[str]] = [[]]
+    for item, kind in zip(items, kinds, strict=True):
+        if groups[-1] and kind and kind[0] == "num":
+            groups.append([])
+        groups[-1].append(item)
+    return groups
+
+
 POINT_MAX_WORDS = 150  # lists of points are split finer: each point is a distinct rule
 
 
@@ -277,6 +289,7 @@ def _segments(u: Unit, max_words: int) -> list[tuple[str, str, bool]]:
     split by points (or sentences), repeating the lead-in line for context; those pieces are
     standalone so they never get re-merged with neighbours."""
     segs: list[tuple[str, str, bool]] = []
+    is_definitions = u.title.strip().lower() == "definitions"
     for num, para_lines in _split_paragraphs(u.lines):
         text = "\n".join(para_lines)
         if _wc(text) <= max_words:
@@ -289,10 +302,16 @@ def _segments(u: Unit, max_words: int) -> list[tuple[str, str, bool]]:
         budget = (min(POINT_MAX_WORDS, max_words) if has_points else max_words) - _wc(lead)
         items = _explode(rest, budget)
         kinds = _classify_points(items)
+        if is_definitions:
+            groups = _pack_by_term(items, kinds)
+        else:
+            groups = _pack(items, budget)
         pos = 0
-        for group in _pack(items, budget):
+        for group in groups:
             pts = [p for p in kinds[pos : pos + len(group)] if p]
             pos += len(group)
+            if is_definitions:  # label by defined term number: "(16)", not "(16)-(b)"
+                pts = [p for p in pts if p[0] == "num"] or pts
             label = f"{num}{_point_range(pts)}" or num
             segs.append((label, "\n".join([lead, *group] if lead else group), True))
     return segs
@@ -329,8 +348,21 @@ def chunk_units(units: list[Unit], max_words: int = 300) -> list[Chunk]:
             else:
                 label = f"{labels[0]} to {labels[-1]}"
             text = "\n".join(t for _, t in group)
-            chunks.append(_make_chunk(u, f"{base_id}-{part}", label, text))
+            chunk = _make_chunk(u, f"{base_id}-{part}", label, text)
+            if u.title.strip().lower() == "definitions":
+                _name_defined_term(chunk)
+            chunks.append(chunk)
     return chunks
+
+
+def _name_defined_term(chunk: Chunk) -> None:
+    """Put the defined term in the header ("... Definitions: definition of 'personal data'"), so
+    a question like "definition of personal data" matches the right one of 26+ near-identical
+    definition chunks. The header line is stripped before prompting the LLM."""
+    m = RE_DEFINED_TERM.search(chunk.text)
+    if m:
+        head, _, body = chunk.text.partition("\n")
+        chunk.text = f"{head}: definition of {m.group(1)}\n{body}"
 
 
 # ---------- cross-reference enrichment ----------

@@ -125,6 +125,13 @@ def build_index(chunks: list[dict], encode: EncodeFn, client: QdrantClient) -> N
 
 # ---------- retrieval ----------
 
+# Definitions articles hold 26+ near-identical chunks ("For the purposes of this Regulation: (n)
+# 'term' means ..."). Ranking can't tell "personal data" from "personal data breach", so a
+# definitional question that names a defined term gets that exact chunk promoted.
+RE_DEFINITION_CUE = re.compile(r"\b(?:defin\w*|meaning|means?)\b|^\s*what (?:is|are)\b", re.I)
+RE_HEADER_TERM = re.compile(r": definition of (.+)$")
+EXACT_TERM_BOOST = 0.05  # above the max possible RRF score of two lists (2/61)
+
 
 class HybridRetriever:
     def __init__(
@@ -139,6 +146,24 @@ class HybridRetriever:
         self.client = client
         self.reranker = reranker
         self.bm25 = BM25Okapi([tokenize(search_text(c)) for c in chunks])
+        self.terms: dict[int, str] = {}  # chunk index -> defined term (Definitions articles)
+        for i, c in enumerate(chunks):
+            m = RE_HEADER_TERM.search(c["text"].split("\n", 1)[0])
+            if c.get("title", "").strip().lower() == "definitions" and m:
+                self.terms[i] = m.group(1).strip().lower()
+
+    def _defined_terms_in(self, query: str, kinds: Sequence[str] | None) -> list[int]:
+        """Chunks whose defined term appears in a definitional question (longest match wins)."""
+        q = query.lower()
+        if not RE_DEFINITION_CUE.search(q):
+            return []
+        hits = {
+            i: t
+            for i, t in self.terms.items()
+            if re.search(rf"(?<!\w){re.escape(t)}(?!\w)", q)
+            and (not kinds or self.chunks[i]["kind"] in kinds)
+        }
+        return [i for i, t in hits.items() if not any(t != u and t in u for u in hits.values())]
 
     def dense_ranking(self, query: str, k: int, kinds: Sequence[str] | None = None) -> list[int]:
         vec = self.encode([query], True)[0]
@@ -176,6 +201,9 @@ class HybridRetriever:
         bm25 = self.bm25_ranking(query, pool, kinds) if mode in ("bm25", "hybrid") else []
 
         fused = rrf_fuse([r for r in (dense, bm25) if r])
+        if mode == "hybrid":
+            for i in self._defined_terms_in(query, kinds):
+                fused[i] = fused.get(i, 0.0) + EXACT_TERM_BOOST
         candidates = sorted(fused, key=fused.get, reverse=True)
         if max_per_unit and not (rerank and self.reranker):
             candidates = self._cap_per_unit(candidates, max_per_unit)
